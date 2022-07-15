@@ -1,8 +1,8 @@
 # ref: https://help.github.com/en/actions/building-actions/metadata-syntax-for-github-actions
-name: Maven Version Bump Action
-description: A simple GitHub Actions to bump the version of Maven projects
+name: Maven Artifact Version Bumper
+description: Tag the current commit of a service or dependency and then if a service, bump the version in a new commit.. A fork of Nick Nichols Maven Version Bump Action.
 
-author: Nick Nichols
+author: Charles Federspiel
 
 branding:
   color: purple
@@ -24,6 +24,14 @@ inputs:
     description: 'The name to use for the version bump commit. e.g. github.actor'
     required: true
     default: github-actions[bot]
+  read-only:
+    description: 'Provide version output without bumping or tagging'
+    required: false
+    default: false
+  artifact-type:
+    description: 'Deployable service or a dependency'
+    required: true
+    default: service
 
 outputs:
   version:
@@ -39,6 +47,8 @@ runs:
         EMAIL: ${{ inputs.git-email }}
         NAME: ${{ inputs.git-username }}
         POMPATH: ${{ inputs.pom-path }}
+        READ_ONLY: ${{ inputs.read-only }}
+        ARTIFACT_TYPE: ${{ inputs.artifact-type }}
       run: ${{github.action_path}}/version-bump.sh
       shell: bash
     - name: Set outputs
@@ -46,7 +56,7 @@ runs:
       shell: bash
       env:
         POMPATH: ${{ inputs.pom-path }}
-      run: echo "::set-output name=version::$(${{github.action_path}}/get-version.sh)"
+      run: echo "::set-output name=version::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)"
     - name: Result
       shell: bash
       run: "echo 'Version is now ${{ steps.get-outputs.outputs.version }}'"

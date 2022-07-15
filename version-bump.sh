@@ -15,6 +15,8 @@ function bump {
   local mode="$1"
   local old="$2"
   local parts=( ${old//./ } )
+  local lastElement=${parts[${#parts[@]}-1]}
+  local patchAndPreReleaseLabel=(${lastElement//-/ })
   case "$1" in
     major)
       local bv=$((parts[0] + 1))
@@ -25,16 +27,19 @@ function bump {
       NEW_VERSION="${parts[0]}.${bv}.0"
       ;;
     patch)
-      local bv=$((parts[2] + 1))
+      local bv=$((patchAndPreReleaseLabel[0] + 1))
       NEW_VERSION="${parts[0]}.${parts[1]}.${bv}"
       ;;
     esac
+  if [ ! -z ${patchAndPreReleaseLabel[1]} ]; then
+    NEW_VERSION="${NEW_VERSION}-${patchAndPreReleaseLabel[1]}"
+  fi
 }
 
 git config --global user.email $EMAIL
 git config --global user.name $NAME
 
-OLD_VERSION=$($DIR/get-version.sh)
+OLD_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
 
 BUMP_MODE="none"
 if git log -1 | grep -q "#major"; then
@@ -45,19 +50,27 @@ else
   BUMP_MODE="patch"
 fi
 
-if [[ "${BUMP_MODE}" == "none" ]]
+REPO="https://$GITHUB_ACTOR:$TOKEN@github.com/$GITHUB_REPOSITORY.git"
+
+if [[ "${READ_ONLY}" == "true" ]]
 then
-  echo "No matching commit tags found."
-  echo "pom.xml at" $POMPATH "will remain at" $OLD_VERSION
-else
+  echo "Read-only mode: pom.xml at" $POMPATH "will remain at" $OLD_VERSION
+elif [[ "${ARTIFACT_TYPE}" == "service" ]]
+then
+  git tag --force $OLD_VERSION
+  git push $REPO --follow-tags --force
+  git push $REPO --tags --force
+  
   echo $BUMP_MODE "version bump detected"
   bump $BUMP_MODE $OLD_VERSION
   echo "pom.xml at" $POMPATH "will be bumped from" $OLD_VERSION "to" $NEW_VERSION
   mvn -q versions:set -DnewVersion="${NEW_VERSION}"
   git add $POMPATH/pom.xml
-  REPO="https://$GITHUB_ACTOR:$TOKEN@github.com/$GITHUB_REPOSITORY.git"
   git commit -m "Bump pom.xml from $OLD_VERSION to $NEW_VERSION"
-  git tag $NEW_VERSION
-  git push $REPO --follow-tags
-  git push $REPO --tags
+  git push
+elif [[ "${ARTIFACT_TYPE}" == "dependency" ]]
+then
+  git tag --force  $OLD_VERSION
+  git push $REPO --follow-tags --force
+  git push $REPO --tags --force
 fi
