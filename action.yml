@@ -1,6 +1,6 @@
 # ref: https://help.github.com/en/actions/building-actions/metadata-syntax-for-github-actions
 name: Maven Artifact Version Bumper
-description: Tag the current commit of a service or dependency and then if a service, bump the version in a new commit.. A fork of Nick Nichols Maven Version Bump Action.
+description: Tag the current commit of a service or dependency and then, if a service, bump the version in a new commit.
 
 author: Charles Federspiel
 
